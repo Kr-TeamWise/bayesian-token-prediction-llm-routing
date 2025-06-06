@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-LLM 라우팅 베이지안 프레임워크 메인 실험
+LLM Routing Bayesian Framework Main Experiment
 Author: Research Team
 Date: 2024
 """
@@ -13,57 +13,57 @@ from pathlib import Path
 import warnings
 warnings.filterwarnings('ignore')
 
-# 로컬 모듈 import
+# Import local modules
 from experiments.data_loader import LMArenaDataLoader
 from experiments.bayesian_predictor import BayesianTokenPredictor, FeatureExtractor
 from experiments.thompson_router import ThompsonSamplingRouter, ColdStartExperiment
 
-# 시각화 스타일 설정
+# Visualization style settings
 plt.style.use('default')
 sns.set_palette("husl")
 
 def main():
-    """메인 실험 함수"""
+    """Main experiment function"""
     
-    print("🚀 LLM 라우팅 베이지안 프레임워크 실험 시작")
+    print("🚀 LLM Routing Bayesian Framework Experiment Started")
     print("=" * 80)
     
-    # 1. 데이터 로딩 및 전처리
-    print("\n📊 1단계: 데이터 로딩 및 전처리")
+    # 1. Data loading and preprocessing
+    print("\n📊 1st Step: Data loading and preprocessing")
     print("-" * 50)
     
     data_loader = LMArenaDataLoader(cache_dir="./data")
     
-    # LMArena 데이터 다운로드 시도 (실패시 시뮬레이션 데이터 사용)
+    # Attempt to download LMArena data (use simulated data if fails)
     try:
         raw_data = data_loader.download_lmarena_data()
     except Exception as e:
-        print(f"⚠️ 실제 데이터 로딩 실패: {e}")
-        print("🎲 시뮬레이션 데이터로 진행합니다.")
+        print(f"⚠️ Failed to load actual data: {e}")
+        print("🎲 Using simulated data.")
         raw_data = data_loader._generate_simulated_data(n_samples=15000)
     
-    # 데이터 전처리
+    # Data preprocessing
     processed_data = data_loader.preprocess_data()
     
-    # 데이터 요약 통계
+    # Data summary statistics
     stats = data_loader.get_summary_stats()
-    print(f"\n📈 데이터 요약:")
-    print(f"  • 총 대화: {stats['total_conversations']:,}개")
-    print(f"  • 모델 수: {stats['unique_models']}개")
-    print(f"  • 기간: {stats['date_range'][0]} ~ {stats['date_range'][1]}")
+    print(f"\n📈 Data Summary:")
+    print(f"  • Total conversations: {stats['total_conversations']:,}")
+    print(f"  • Number of models: {stats['unique_models']}")
+    print(f"  • Date range: {stats['date_range'][0]} ~ {stats['date_range'][1]}")
     if 'avg_query_length' in stats:
-        print(f"  • 평균 쿼리 길이: {stats['avg_query_length']:.1f}")
+        print(f"  • Average query length: {stats['avg_query_length']:.1f}")
     if 'avg_complexity' in stats:
-        print(f"  • 평균 복잡도: {stats['avg_complexity']:.3f}")
+        print(f"  • Average complexity: {stats['avg_complexity']:.3f}")
     
-    # 2. 시계열 데이터 분할
-    print("\n🔄 2단계: 시계열 기반 데이터 분할")
+    # 2. Temporal data splitting
+    print("\n🔄 2nd Step: Temporal data splitting")
     print("-" * 50)
     
     train_data, val_data, test_data = data_loader.get_temporal_splits()
     
-    # 3. 모델 가족 정의
-    print("\n🏗️ 3단계: 모델 가족 정의 및 특성 추출")
+    # 3. Model family definition
+    print("\n🏗️ 3rd Step: Model family definition and feature extraction")
     print("-" * 50)
     
     model_families = {
@@ -74,76 +74,76 @@ def main():
         'mistral': ['mixtral-8x7b-instruct']
     }
     
-    print(f"📊 모델 가족 구성:")
+    print(f"📊 Model family composition:")
     for family, models in model_families.items():
-        print(f"  • {family}: {len(models)}개 모델")
+        print(f"  • {family}: {len(models)} models")
     
-    # 3-1. 모델 가족별 성능 상관관계 분석
-    print("\n📈 3-1. 모델 가족별 성능 상관관계 분석")
+    # 3-1. Analyze performance correlations among model families
+    print("\n📈 3-1. Analyze performance correlations among model families")
     family_correlation_analysis = analyze_family_correlations(processed_data, model_families)
     print_family_correlation_table(family_correlation_analysis)
     
-    # 4. 베이지안 토큰 예측 모델 훈련
-    print("\n🤖 4단계: 베이지안 토큰 예측 모델 훈련")
+    # 4. Train Bayesian token prediction model
+    print("\n🤖 4th Step: Train Bayesian token prediction model")
     print("-" * 50)
     
     predictor = BayesianTokenPredictor(model_families)
     
-    # 모델 훈련 (직접 train_data 사용)
+    # Train model (using direct train_data)
     training_results = predictor.fit(train_data)
     
-    print(f"\n✅ 훈련 완료된 모델: {len(training_results)}개")
+    print(f"\n✅ Trained models: {len(training_results)}")
     for model, result in training_results.items():
         print(f"  • {model}: R²={result['r2']:.3f}, MAE={result['mae']:.1f}")
     
-    # 5. 예측 성능 평가
-    print("\n📈 5단계: 토큰 예측 성능 평가")
+    # 5. Evaluate prediction performance
+    print("\n📈 5th Step: Evaluate token prediction performance")
     print("-" * 50)
     
     test_results = predictor.evaluate(test_data)
     
-    # 5-1. 실제 토큰 예측 시나리오 실험
-    print("\n🎯 5-1. 실제 토큰 예측 시나리오 실험")
+    # 5-1. Run experiment with actual token prediction scenarios
+    print("\n🎯 5-1. Run experiment with actual token prediction scenarios")
     token_prediction_accuracy = run_token_prediction_experiment(test_data, predictor, list(training_results.keys()))
     print_token_prediction_accuracy_table(token_prediction_accuracy)
     
-    # 5-2. 토큰 예측 성능 비교 테이블
-    print("\n📊 5-2. 토큰 예측 성능 비교")
+    # 5-2. Create comparison table for token prediction performance
+    print("\n📊 5-2. Create comparison table for token prediction performance")
     token_prediction_comparison = create_token_prediction_comparison(test_results, training_results)
     print_token_prediction_table(token_prediction_comparison)
     
-    # 5-3. 모델별 토큰 예측 성능 상세 분석
-    print("\n📊 5-3. 모델별 토큰 예측 성능 상세")
+    # 5-3. Detailed analysis of model-specific token prediction performance
+    print("\n📊 5-3. Detailed analysis of model-specific token prediction performance")
     detailed_performance = create_detailed_performance_analysis(test_results, predictor, test_data)
     print_detailed_performance_table(detailed_performance)
     
-    # 6. Thompson Sampling 라우터 초기화
-    print("\n🎲 6단계: Thompson Sampling 라우터 초기화")
+    # 6. Initialize Thompson Sampling router
+    print("\n🎲 6th Step: Initialize Thompson Sampling router")
     print("-" * 50)
     
     available_models = list(training_results.keys())
-    print(f"🔧 사용 가능한 모델: {len(available_models)}개")
+    print(f"🔧 Available models: {len(available_models)}")
     
-    # 가족별 성능으로 사전 분포 설정
+    # Set prior distribution based on family performance
     family_avg_performance = {}
     for family, family_models in model_families.items():
         family_results = [training_results[m]['r2'] for m in family_models 
                          if m in training_results]
         if family_results:
             family_avg_performance[family] = np.mean(family_results)
-            print(f"  📊 {family} 가족 평균 R²: {family_avg_performance[family]:.3f}")
+            print(f"  📊 {family} family average R²: {family_avg_performance[family]:.3f}")
     
-    # 7. 콜드 스타트 실험
-    print("\n❄️ 7단계: 콜드 스타트 시나리오 실험")
+    # 7. Run cold start experiment
+    print("\n❄️ 7th Step: Run cold start scenario experiment")
     print("-" * 50)
     
     experiment = ColdStartExperiment(predictor, ThompsonSamplingRouter)
     
     cold_start_results = {}
     
-    # GPT-4 Turbo 콜드 스타트 시뮬레이션
+    # GPT-4 Turbo cold start simulation
     if 'gpt-4-1106-preview' in available_models:
-        print("\n🧪 실험 1: GPT-4 Turbo 콜드 스타트")
+        print("\n🧪 Experiment 1: GPT-4 Turbo cold start")
         gpt4_results = experiment.simulate_cold_start(
             new_model='gpt-4-1106-preview',
             family='openai',
@@ -152,15 +152,15 @@ def main():
         )
         cold_start_results['gpt-4-turbo'] = gpt4_results
         
-        print(f"📊 GPT-4 Turbo 결과:")
-        print(f"  • 수렴 시간: {gpt4_results['final_stats']['convergence_time']} 쿼리")
-        print(f"  • 평균 후회: {gpt4_results['final_stats']['average_regret']:.3f}")
-        print(f"  • 신규 모델 사용률: {gpt4_results['final_stats']['new_model_usage_rate']:.1%}")
-        print(f"  • 성능 개선: {gpt4_results['final_stats']['performance_improvement']:.1%}")
+        print(f"📊 GPT-4 Turbo results:")
+        print(f"  • Convergence time: {gpt4_results['final_stats']['convergence_time']} queries")
+        print(f"  • Average regret: {gpt4_results['final_stats']['average_regret']:.3f}")
+        print(f"  • New model usage rate: {gpt4_results['final_stats']['new_model_usage_rate']:.1%}")
+        print(f"  • Performance improvement: {gpt4_results['final_stats']['performance_improvement']:.1%}")
     
-    # Claude-2.1 콜드 스타트 시뮬레이션
+    # Claude-2.1 cold start simulation
     if 'claude-2.1' in available_models:
-        print("\n🧪 실험 2: Claude-2.1 콜드 스타트")
+        print("\n🧪 Experiment 2: Claude-2.1 cold start")
         claude_results = experiment.simulate_cold_start(
             new_model='claude-2.1',
             family='anthropic',
@@ -169,77 +169,77 @@ def main():
         )
         cold_start_results['claude-2.1'] = claude_results
         
-        print(f"📊 Claude-2.1 결과:")
-        print(f"  • 수렴 시간: {claude_results['final_stats']['convergence_time']} 쿼리")
-        print(f"  • 평균 후회: {claude_results['final_stats']['average_regret']:.3f}")
-        print(f"  • 신규 모델 사용률: {claude_results['final_stats']['new_model_usage_rate']:.1%}")
-        print(f"  • 성능 개선: {claude_results['final_stats']['performance_improvement']:.1%}")
+        print(f"📊 Claude-2.1 results:")
+        print(f"  • Convergence time: {claude_results['final_stats']['convergence_time']} queries")
+        print(f"  • Average regret: {claude_results['final_stats']['average_regret']:.3f}")
+        print(f"  • New model usage rate: {claude_results['final_stats']['new_model_usage_rate']:.1%}")
+        print(f"  • Performance improvement: {claude_results['final_stats']['performance_improvement']:.1%}")
     
-    # 7-1. 콜드 스타트 성능 비교 테이블
-    print("\n📊 7-1. 콜드 스타트 성능 비교")
+    # 7-1. Create comparison table for cold start performance
+    print("\n📊 7-1. Create comparison table for cold start performance")
     cold_start_comparison = create_cold_start_comparison_table(cold_start_results)
     print_cold_start_comparison(cold_start_comparison)
     
-    # 7-2. 교차 가족 일반화 실험
-    print("\n📊 7-2. 교차 가족 일반화 결과")
+    # 7-2. Run cross-family generalization experiment
+    print("\n📊 7-2. Run cross-family generalization experiment")
     cross_family_results = run_cross_family_generalization(experiment, test_data, model_families, available_models)
     print_cross_family_table(cross_family_results)
     
-    # 8. 기준선 비교 실험
-    print("\n⚖️ 8단계: Thompson Sampling vs 기준선 방법 비교")
+    # 8. Run baseline comparison experiment
+    print("\n⚖️ 8th Step: Compare Thompson Sampling vs baseline methods")
     print("-" * 50)
     
     comparison_results = run_baseline_comparison(test_data, predictor, available_models)
     
-    print(f"🏆 성능 비교 결과:")
-    print(f"  • Thompson Sampling (제안): {comparison_results['proposed_thompson']:.3f}")
-    print(f"  • 단순 유틸리티 (기존): {comparison_results['proposed_simple']:.3f}")
-    print(f"  • 무작위 라우팅: {comparison_results['random_routing']:.3f}")
-    print(f"  • 항상 프리미엄: {comparison_results['always_premium']:.3f}")
-    print(f"  • 단순 임계값: {comparison_results['simple_threshold']:.3f}")
-    print(f"  • 비용 최우선: {comparison_results['cost_only']:.3f}")
+    print(f"🏆 Comparison results:")
+    print(f"  • Thompson Sampling (proposed): {comparison_results['proposed_thompson']:.3f}")
+    print(f"  • Simple utility (baseline): {comparison_results['proposed_simple']:.3f}")
+    print(f"  • Random routing: {comparison_results['random_routing']:.3f}")
+    print(f"  • Always premium: {comparison_results['always_premium']:.3f}")
+    print(f"  • Simple threshold: {comparison_results['simple_threshold']:.3f}")
+    print(f"  • Cost-only: {comparison_results['cost_only']:.3f}")
     
-    # Thompson Sampling 학습 통계
+    # Thompson Sampling learning statistics
     if 'thompson_stats' in comparison_results:
         stats = comparison_results['thompson_stats']
-        print(f"\n🤖 Thompson Sampling 학습 통계:")
-        print(f"  • 탐험률: {stats['exploration_rate']:.3f}")
-        print(f"  • 수렴 여부: {'수렴' if stats['convergence_indicator'] else '학습 중'}")
+        print(f"\n🤖 Thompson Sampling learning statistics:")
+        print(f"  • Exploration rate: {stats['exploration_rate']:.3f}")
+        print(f"  • Convergence status: {'Converged' if stats['convergence_indicator'] else 'Learning in progress'}")
         
-        # 모델 선택 분포
+        # Model selection distribution
         selection_stats = stats['total_selections']
         total_selections = sum(selection_stats.values())
         if total_selections > 0:
-            print(f"  • 모델 선택 분포:")
+            print(f"  • Model selection distribution:")
             for model, count in selection_stats.items():
                 percentage = (count / total_selections) * 100
-                print(f"    - {model}: {count}회 ({percentage:.1f}%)")
+                print(f"    - {model}: {count} times ({percentage:.1f}%)")
         
-        # 모델 선호도 (학습된 성능)
+        # Model preference (learned performance)
         preferences = stats['model_preferences']
-        print(f"  • 학습된 모델 선호도:")
+        print(f"  • Learned model preferences:")
         sorted_preferences = sorted(preferences.items(), key=lambda x: x[1], reverse=True)
         for i, (model, pref) in enumerate(sorted_preferences[:5]):
             print(f"    {i+1}. {model}: {pref:.3f}")
     
-    # Thompson Sampling 개선율 계산
+    # Calculate improvement over random routing
     ts_improvement = ((comparison_results['proposed_thompson'] - comparison_results['random_routing']) / 
                      comparison_results['random_routing']) * 100
     simple_improvement = ((comparison_results['proposed_simple'] - comparison_results['random_routing']) / 
                          comparison_results['random_routing']) * 100
     
-    print(f"\n📈 무작위 라우팅 대비 성능 개선:")
+    print(f"\n📈 Improvement over random routing:")
     print(f"  • Thompson Sampling: +{ts_improvement:.1f}%")
-    print(f"  • 단순 유틸리티: +{simple_improvement:.1f}%")
-    print(f"  • Thompson Sampling 추가 이득: +{ts_improvement - simple_improvement:.1f}%")
+    print(f"  • Simple utility: +{simple_improvement:.1f}%")
+    print(f"  • Additional gain from Thompson Sampling: +{ts_improvement - simple_improvement:.1f}%")
     
-    # 8-1. 위험 허용도별 성능 분석
-    print("\n📊 8-1. 위험 허용도별 성능 분석")
+    # 8-1. Analyze risk tolerance performance
+    print("\n📊 8-1. Analyze risk tolerance performance")
     risk_tolerance_analysis = analyze_risk_tolerance_performance(test_data, predictor, available_models)
     print_risk_tolerance_table(risk_tolerance_analysis)
     
-    # 9. 결과 시각화
-    print("\n📊 9단계: 결과 시각화")
+    # 9. Visualize results
+    print("\n📊 9th Step: Visualize results")
     print("-" * 50)
     
     create_visualizations(
@@ -249,24 +249,24 @@ def main():
         comparison_results
     )
     
-    # 10. 경제적 영향 분석
-    print("\n💰 10단계: 경제적 영향 분석")
+    # 10. Analyze economic impact
+    print("\n💰 10th Step: Analyze economic impact")
     print("-" * 50)
     
     economic_impact = calculate_economic_impact(comparison_results, test_data)
     
-    # 10-1. 월별 비용 절감 효과 분석
-    print("\n📊 10-1. 월별 비용 절감 효과 (규모별)")
+    # 10-1. Analyze monthly cost reduction effect (scale-wise)
+    print("\n📊 10-1. Analyze monthly cost reduction effect (scale-wise)")
     cost_reduction_analysis = create_cost_reduction_analysis(economic_impact, comparison_results)
     print_cost_reduction_table(cost_reduction_analysis)
     
-    print(f"\n💵 예상 경제적 효과:")
-    print(f"  • 월간 비용 절감: ${economic_impact['monthly_savings']:,.0f}")
-    print(f"  • 연간 ROI: {economic_impact['annual_roi']:.0f}%")
-    print(f"  • 투자 회수 기간: {economic_impact['payback_months']:.1f}개월")
+    print(f"\n💵 Estimated economic benefits:")
+    print(f"  • Monthly cost reduction: ${economic_impact['monthly_savings']:,.0f}")
+    print(f"  • Annual ROI: {economic_impact['annual_roi']:.0f}%")
+    print(f"  • Payback period: {economic_impact['payback_months']:.1f} months")
     
-    # 11. 종합 실험 결과 요약
-    print("\n📋 11단계: 종합 실험 결과 요약")
+    # 11. Summarize overall experiment results
+    print("\n📋 11th Step: Summarize overall experiment results")
     print("-" * 50)
     
     final_summary = create_final_summary(
@@ -275,11 +275,11 @@ def main():
     )
     print_final_summary(final_summary)
     
-    print("\n🎉 실험 완료!")
+    print("\n🎉 Experiment completed!")
     print("=" * 80)
-    print("📊 모든 결과가 './results/' 디렉토리에 저장되었습니다.")
+    print("📊 All results saved in './results/' directory.")
     
-    # 최종 결과를 딕셔너리로 정리
+    # Organize final results in a dictionary
     all_results = {
         'data_stats': stats,
         'family_correlations': family_correlation_analysis,
@@ -295,40 +295,40 @@ def main():
         'final_summary': final_summary
     }
     
-    # 마크다운으로 결과 저장
+    # Save results in markdown format
     markdown_file = save_results_to_markdown(all_results)
-    print(f"📄 마크다운 결과 파일: {markdown_file}")
+    print(f"📄 Markdown result file: {markdown_file}")
     
     return all_results
 
 def run_baseline_comparison(test_data: pd.DataFrame, predictor, available_models: list, 
                            n_samples: int = 200) -> dict:
-    """Thompson Sampling 기반 라우팅 vs 기준선 방법 비교"""
+    """Compare Thompson Sampling-based routing vs baseline methods"""
     
-    # 테스트 샘플 선택
+    # Select test samples
     test_sample = test_data.sample(min(n_samples, len(test_data)), random_state=42)
     
-    # Thompson Sampling 라우터 초기화
+    # Initialize Thompson Sampling router
     thompson_router = ThompsonSamplingRouter(
         models=available_models,
-        token_predictor=predictor,  # predictor → token_predictor로 수정
+        token_predictor=predictor,  # Fixed: predictor → token_predictor
         cost_weight=0.3
     )
     
     results = {
-        'proposed_thompson': [],  # Thompson Sampling + 베이지안 예측
-        'proposed_simple': [],    # 단순 유틸리티 기반 (기존 제안 방법)
+        'proposed_thompson': [],  # Thompson Sampling + Bayesian prediction
+        'proposed_simple': [],    # Simple utility-based (existing proposed method)
         'random_routing': [],
         'always_premium': [],
         'simple_threshold': [],
         'cost_only': []
     }
     
-    # 각 쿼리에 대해 실제 예측 시나리오 실행
+    # Execute actual prediction scenarios for each query
     for idx, row in test_sample.iterrows():
         query_features = predictor._extract_query_features(row)
         
-        # 1. 제안 방법: Thompson Sampling + 베이지안 예측
+        # 1. Proposed method: Thompson Sampling + Bayesian prediction
         predicted_tokens = {}
         predicted_costs = {}
         predicted_utilities = {}
@@ -340,11 +340,11 @@ def run_baseline_comparison(test_data: pd.DataFrame, predictor, available_models
             predicted_costs[model] = predicted_tokens[model] * predictor.model_costs.get(model, 0.01)
             model_uncertainties[model] = pred_result['std'][0]
             
-            # 유틸리티: 예상 성능 - 비용 (간단한 휴리스틱)
-            expected_quality = 0.8  # 기본 품질 점수
+            # Utility: expected performance - cost (simple heuristic)
+            expected_quality = 0.8  # Default quality score
             predicted_utilities[model] = expected_quality - (predicted_costs[model] * 1000)
         
-        # Thompson Sampling으로 모델 선택
+        # Select model using Thompson Sampling
         selected_model_ts = thompson_router.select_model(
             query_features, 
             predicted_tokens, 
@@ -352,16 +352,16 @@ def run_baseline_comparison(test_data: pd.DataFrame, predictor, available_models
             available_models
         )
         
-        # 2. 단순 유틸리티 기반 (기존 제안 방법)
+        # 2. Simple utility-based (existing proposed method)
         best_model_simple = max(predicted_utilities.keys(), key=lambda k: predicted_utilities[k])
         
         # 3. 무작위 라우팅
         random_model = np.random.choice(available_models)
         
-        # 4. 항상 프리미엄 (가장 비싼 모델)
+        # 4. Always premium (most expensive model)
         premium_model = max(available_models, key=lambda m: predictor.model_costs.get(m, 0.01))
         
-        # 5. 단순 임계값 (복잡도 기준)
+        # 5. Simple threshold (based on complexity)
         query_complexity = query_features[4] if len(query_features) > 4 else 0.5
         if query_complexity > 0.7:
             threshold_model = premium_model
@@ -372,10 +372,10 @@ def run_baseline_comparison(test_data: pd.DataFrame, predictor, available_models
             cheap_models = [m for m in available_models if predictor.model_costs.get(m, 0.01) < 0.005]
             threshold_model = cheap_models[0] if cheap_models else available_models[0]
         
-        # 6. 비용 최우선 (가장 저렴한 모델)
+        # 6. Cost-first (cheapest model)
         cost_only_model = min(available_models, key=lambda m: predictor.model_costs.get(m, 0.01))
         
-        # 각 방법의 성능 평가
+        # Evaluate performance of each method
         ts_score = evaluate_routing_decision(selected_model_ts, row, predictor)
         simple_score = evaluate_routing_decision(best_model_simple, row, predictor)
         random_score = evaluate_routing_decision(random_model, row, predictor)
@@ -383,7 +383,7 @@ def run_baseline_comparison(test_data: pd.DataFrame, predictor, available_models
         threshold_score = evaluate_routing_decision(threshold_model, row, predictor)
         cost_score = evaluate_routing_decision(cost_only_model, row, predictor)
         
-        # 결과 수집
+        # Collect results
         results['proposed_thompson'].append(ts_score)
         results['proposed_simple'].append(simple_score)
         results['random_routing'].append(random_score)
@@ -391,14 +391,14 @@ def run_baseline_comparison(test_data: pd.DataFrame, predictor, available_models
         results['simple_threshold'].append(threshold_score)
         results['cost_only'].append(cost_score)
         
-        # Thompson Sampling 업데이트
+        # Update Thompson Sampling
         ts_reward = 1.0 if ts_score > 0.5 else 0.0
         thompson_router.update_rewards(selected_model_ts, ts_reward)
     
-    # 평균 성능 계산
+    # Calculate average performance
     avg_results = {method: np.mean(scores) for method, scores in results.items()}
     
-    # Thompson Sampling 학습 통계 추가
+    # Add Thompson Sampling learning statistics
     avg_results['thompson_stats'] = {
         'total_selections': thompson_router.get_selection_stats(),
         'model_preferences': thompson_router.get_model_preferences(),
@@ -409,7 +409,7 @@ def run_baseline_comparison(test_data: pd.DataFrame, predictor, available_models
     return avg_results
 
 def get_model_cost_per_1k_tokens(model: str) -> float:
-    """모델별 1k 토큰당 비용 반환"""
+    """Return cost per 1k tokens for each model"""
     costs = {
         'gpt-4-1106-preview': 30.0,
         'gpt-4-0613': 60.0,
@@ -425,7 +425,7 @@ def get_model_cost_per_1k_tokens(model: str) -> float:
     return costs.get(model, 10.0)
 
 def get_model_quality_score(model: str) -> float:
-    """모델별 품질 점수 반환"""
+    """Return quality score for each model"""
     quality_scores = {
         'gpt-4-1106-preview': 0.95,
         'gpt-4-0613': 0.92,
@@ -441,9 +441,9 @@ def get_model_quality_score(model: str) -> float:
     return quality_scores.get(model, 0.7)
 
 def evaluate_routing_decision(selected_model: str, row: pd.Series, predictor) -> float:
-    """라우팅 결정의 성능 평가"""
+    """Evaluate performance of routing decisions"""
     
-    # 실제 선택된 모델의 토큰 수 찾기
+    # Find actual token count for the selected model
     actual_tokens_a = row['response_tokens_a'] if row['model_a'] == selected_model else None
     actual_tokens_b = row['response_tokens_b'] if row['model_b'] == selected_model else None
     
@@ -454,12 +454,12 @@ def evaluate_routing_decision(selected_model: str, row: pd.Series, predictor) ->
         actual_tokens = actual_tokens_b  
         model_position = 'b'
     else:
-        # 선택된 모델이 이 비교에 없는 경우 - 평균 성능 반환
+        # If selected model is not in this comparison - return average performance
         return 0.5
     
-    # winner 컬럼 생성 (실제 데이터 구조에 맞게)
+    # Create winner column (adapted to actual data structure)
     if 'winner' not in row.index:
-        # winner_model_a, winner_model_b, winner_tie에서 winner 결정
+        # Determine winner from winner_model_a, winner_model_b, winner_tie
         if row['winner_model_a'] == 1:
             actual_winner = 'model_a'
         elif row['winner_model_b'] == 1:
@@ -467,20 +467,20 @@ def evaluate_routing_decision(selected_model: str, row: pd.Series, predictor) ->
         elif row['winner_tie'] == 1:
             actual_winner = 'tie'
         else:
-            actual_winner = 'tie'  # 기본값
+            actual_winner = 'tie'  # Default value
     else:
         actual_winner = row['winner']
     
-    # 성능 점수 계산
+    # Calculate performance score
     if actual_winner == 'tie':
         performance_score = 0.5
     elif (actual_winner == 'model_a' and model_position == 'a') or \
          (actual_winner == 'model_b' and model_position == 'b'):
-        performance_score = 0.8  # 이김
+        performance_score = 0.8  # Win
     else:
-        performance_score = 0.2  # 짐
+        performance_score = 0.2  # Loss
     
-    # 토큰 효율성도 고려 (예상 vs 실제)
+    # Also consider token efficiency (predicted vs actual)
     query_features = predictor._extract_query_features(row)
     try:
         pred_result = predictor.predict_with_uncertainty(query_features, selected_model)
@@ -490,55 +490,55 @@ def evaluate_routing_decision(selected_model: str, row: pd.Series, predictor) ->
     except:
         token_efficiency = 0.5
     
-    # 최종 점수: 성능 70% + 토큰 효율성 30%
+    # Final score: 70% performance + 30% token efficiency
     final_score = 0.7 * performance_score + 0.3 * token_efficiency
     
     return final_score
 
 def create_visualizations(train_data, test_data, training_results, test_results, 
                          gpt4_results, claude_results, comparison_results):
-    """결과 시각화"""
+    """Create result visualizations"""
     
-    # 결과 디렉토리 생성
+    # Create results directory
     Path("results").mkdir(exist_ok=True)
     
-    # 1. 모델별 성능 비교
+    # 1. Model performance comparison
     plt.figure(figsize=(12, 8))
     
     plt.subplot(2, 2, 1)
     models = list(training_results.keys())
     r2_scores = [training_results[m]['r2'] for m in models]
     plt.bar(range(len(models)), r2_scores)
-    plt.title('모델별 토큰 예측 성능 (R²)')
+    plt.title('Model R² Scores for Token Prediction')
     plt.xticks(range(len(models)), [m.split('-')[0] for m in models], rotation=45)
     plt.ylabel('R² Score')
     
-    # 2. 라우팅 방법 성능 비교
+    # 2. Routing method performance comparison
     plt.subplot(2, 2, 2)
     methods = list(comparison_results.keys())
-    # 딕셔너리나 복잡한 객체인 경우 숫자값 추출
+    # If dictionary or complex object, extract numeric values
     scores = []
     for key in methods:
         value = comparison_results[key]
         if isinstance(value, dict):
-            # 딕셔너리인 경우 평균 또는 첫 번째 숫자값 사용
+            # If dictionary, use average or first numeric value
             if 'score' in value:
                 scores.append(value['score'])
             elif 'performance' in value:
                 scores.append(value['performance'])
             else:
-                # 첫 번째 숫자값 찾기
+                # Find first numeric value
                 numeric_values = [v for v in value.values() if isinstance(v, (int, float))]
                 scores.append(numeric_values[0] if numeric_values else 0.5)
         else:
             scores.append(value)
     
     plt.bar(methods, scores)
-    plt.title('라우팅 방법별 성능 비교')
+    plt.title('Performance Comparison of Routing Methods')
     plt.xticks(rotation=45)
     plt.ylabel('Performance Score')
     
-    # 3. 콜드 스타트 학습 곡선
+    # 3. Cold start learning curve
     if gpt4_results and claude_results:
         plt.subplot(2, 2, 3)
         plt.plot(gpt4_results['iterations'][:200], 
@@ -547,48 +547,48 @@ def create_visualizations(train_data, test_data, training_results, test_results,
         plt.plot(claude_results['iterations'][:200], 
                 np.cumsum(claude_results['regrets'][:200]), 
                 label='Claude-2.1')
-        plt.title('콜드 스타트 학습 곡선')
-        plt.xlabel('쿼리 수')
-        plt.ylabel('누적 후회')
+        plt.title('Cold Start Learning Curve')
+        plt.xlabel('Number of Queries')
+        plt.ylabel('Cumulative Regret')
         plt.legend()
     
-    # 4. 데이터 분포
+    # 4. Data distribution
     plt.subplot(2, 2, 4)
     plt.hist(train_data['query_complexity'], bins=20, alpha=0.7, label='Train')
     plt.hist(test_data['query_complexity'], bins=20, alpha=0.7, label='Test')
-    plt.title('쿼리 복잡도 분포')
-    plt.xlabel('복잡도')
-    plt.ylabel('빈도')
+    plt.title('Query Complexity Distribution')
+    plt.xlabel('Complexity')
+    plt.ylabel('Frequency')
     plt.legend()
     
     plt.tight_layout()
     plt.savefig('results/experiment_results.png', dpi=300, bbox_inches='tight')
     plt.show()
     
-    print("📊 시각화 완료: results/experiment_results.png")
+    print("📊 Visualization complete: results/experiment_results.png")
 
 def calculate_economic_impact(comparison_results: dict, test_data: pd.DataFrame) -> dict:
-    """경제적 영향 계산"""
+    """Calculate economic impact"""
     
-    # 성능 개선 계산
+    # Calculate performance improvement
     proposed_score = comparison_results['proposed_thompson']
     baseline_score = comparison_results['random_routing']
     improvement = (proposed_score - baseline_score) / baseline_score
     
-    # 가정: 월 100만 쿼리, 평균 비용 $0.025/쿼리
+    # Assumptions: 1 million queries per month, average cost $0.025 per query
     monthly_queries = 1_000_000
     avg_cost_per_query = 0.025
     
-    # 비용 절감 (성능 개선을 비용 절감으로 변환)
-    cost_reduction_rate = min(0.5, improvement)  # 최대 50% 절감
+    # Cost reduction (convert performance improvement to cost reduction)
+    cost_reduction_rate = min(0.5, improvement)  # Maximum 50% reduction
     monthly_savings = monthly_queries * avg_cost_per_query * cost_reduction_rate
     
-    # ROI 계산
-    implementation_cost = 500_000  # 구현 비용
+    # Calculate ROI
+    implementation_cost = 500_000  # Implementation cost
     annual_savings = monthly_savings * 12
     annual_roi = (annual_savings - implementation_cost * 0.2) / implementation_cost * 100
     
-    # 투자 회수 기간
+    # Payback period
     payback_months = implementation_cost / monthly_savings
     
     return {
@@ -599,26 +599,26 @@ def calculate_economic_impact(comparison_results: dict, test_data: pd.DataFrame)
     }
 
 def analyze_family_correlations(data: pd.DataFrame, model_families: dict) -> dict:
-    """모델 가족별 성능 상관관계 분석"""
+    """Analyze performance correlations among model families"""
     import scipy.stats as stats
     
     correlations = {}
     
     for family_name, models in model_families.items():
-        # 해당 가족의 모델들이 참여한 대화 필터링
+        # Filter conversations where models from the family participated
         family_mask = (data['model_a'].isin(models)) | (data['model_b'].isin(models))
         family_data = data[family_mask]
         
         if len(family_data) < 100:
             continue
             
-        # 모델별 성능 지표 계산 (승률 기준)
+        # Calculate performance metrics for each model (win rate basis)
         model_performance = {}
         for model in models:
             model_wins = 0
             total_battles = 0
             
-            # 모델 A로 참여한 경우
+            # For model A
             model_a_battles = family_data[family_data['model_a'] == model]
             if 'winner' in model_a_battles.columns:
                 model_wins += (model_a_battles['winner'] == 'model_a').sum()
@@ -626,7 +626,7 @@ def analyze_family_correlations(data: pd.DataFrame, model_families: dict) -> dic
                 model_wins += model_a_battles['winner_model_a'].sum()
             total_battles += len(model_a_battles)
             
-            # 모델 B로 참여한 경우  
+            # For model B
             model_b_battles = family_data[family_data['model_b'] == model]
             if 'winner' in model_b_battles.columns:
                 model_wins += (model_b_battles['winner'] == 'model_b').sum()
@@ -638,7 +638,7 @@ def analyze_family_correlations(data: pd.DataFrame, model_families: dict) -> dic
                 model_performance[model] = model_wins / total_battles
         
         if len(model_performance) >= 2:
-            # 토큰 수와 복잡도의 상관관계를 직접 계산
+            # Calculate correlation between token count and complexity directly
             all_tokens = []
             all_complexities = []
             
@@ -646,23 +646,23 @@ def analyze_family_correlations(data: pd.DataFrame, model_families: dict) -> dic
                 model_data_a = family_data[family_data['model_a'] == model]
                 model_data_b = family_data[family_data['model_b'] == model]
                 
-                # 모델 A 데이터
+                # For model A
                 if len(model_data_a) > 0:
                     all_tokens.extend(model_data_a['response_tokens_a'].tolist())
                     all_complexities.extend(model_data_a['query_complexity'].tolist())
                 
-                # 모델 B 데이터
+                # For model B
                 if len(model_data_b) > 0:
                     all_tokens.extend(model_data_b['response_tokens_b'].tolist())
                     all_complexities.extend(model_data_b['query_complexity'].tolist())
             
-            # 상관관계 계산
+            # Calculate correlation
             if len(all_tokens) >= 10:
                 correlation = np.corrcoef(all_tokens, all_complexities)[0,1]
                 
-                # NaN 처리
+                # Handle NaN
                 if pd.isna(correlation):
-                    # 가족별 기본 상관관계 설정
+                    # Set default correlation for the family
                     if 'openai' in family_name.lower():
                         correlation = 0.45 + np.random.uniform(-0.05, 0.05)
                     elif 'anthropic' in family_name.lower():

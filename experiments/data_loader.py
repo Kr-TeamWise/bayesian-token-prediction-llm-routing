@@ -6,7 +6,7 @@ import warnings
 warnings.filterwarnings('ignore')
 
 class LMArenaDataLoader:
-    """LMArena 데이터 로더 및 전처리 클래스"""
+    """LMArena data loader and preprocessing class"""
     
     def __init__(self, cache_dir: str = "./data"):
         self.cache_dir = cache_dir
@@ -15,51 +15,51 @@ class LMArenaDataLoader:
         
     def download_lmarena_data(self, dataset_name: str = "lmarena-ai/arena-human-preference-55k") -> pd.DataFrame:
         """
-        Hugging Face에서 LMArena 데이터 다운로드
+        Download LMArena data from Hugging Face
         
         Args:
-            dataset_name: 다운로드할 데이터셋 이름
+            dataset_name: Name of dataset to download
             
         Returns:
-            pd.DataFrame: 원시 대화 데이터
+            pd.DataFrame: Raw conversation data
         """
-        print(f"🔄 LMArena 데이터 다운로드 중: {dataset_name}")
+        print(f"🔄 Downloading LMArena data: {dataset_name}")
         
         try:
-            # Hugging Face에서 데이터셋 로드
+            # Load dataset from Hugging Face
             dataset = load_dataset(dataset_name, cache_dir=self.cache_dir)
             
-            # train split을 DataFrame으로 변환
+            # Convert train split to DataFrame
             if 'train' in dataset:
                 self.raw_data = dataset['train'].to_pandas()
             else:
-                # train split이 없으면 첫 번째 available split 사용
+                # Use first available split if train split doesn't exist
                 first_split = list(dataset.keys())[0]
                 self.raw_data = dataset[first_split].to_pandas()
                 
-            print(f"✅ 데이터 로드 완료: {len(self.raw_data):,} 개의 대화")
-            print(f"📊 컬럼: {list(self.raw_data.columns)}")
+            print(f"✅ Data loading complete: {len(self.raw_data):,} conversations")
+            print(f"📊 Columns: {list(self.raw_data.columns)}")
             
-            # 실제 데이터 구조에 맞게 변환
+            # Convert to match actual data structure
             processed_data = self._process_arena_data(self.raw_data)
-            # 처리된 데이터를 self.raw_data에 할당하여 preprocess_data에서 사용할 수 있도록 함
+            # Assign processed data to self.raw_data for use in preprocess_data
             self.raw_data = processed_data
             return processed_data
             
         except Exception as e:
-            print(f"❌ 데이터 다운로드 실패: {e}")
-            print("💡 대안으로 시뮬레이션 데이터를 생성합니다.")
+            print(f"❌ Data download failed: {e}")
+            print("💡 Generating simulation data as alternative.")
             return self._generate_simulated_data()
     
     def _process_arena_data(self, raw_data: pd.DataFrame) -> pd.DataFrame:
-        """실제 LMArena 데이터를 실험용 형식으로 변환"""
-        print("🔄 LMArena 데이터 형식 변환 중...")
+        """Convert actual LMArena data to experimental format"""
+        print("🔄 Converting LMArena data format...")
         
         try:
             processed_conversations = []
             
             for idx, row in raw_data.iterrows():
-                # 기본 정보 추출
+                # Extract basic information
                 conversation_data = {
                     'conversation_id': row['id'],
                     'model_a': row['model_a'],
@@ -69,7 +69,7 @@ class LMArenaDataLoader:
                     'response_b': row['response_b'] if pd.notna(row['response_b']) else '',
                 }
                 
-                # 승자 정보 처리 (실제 데이터 구조에 맞게)
+                # Process winner information (adapted to actual data structure)
                 if row['winner_model_a'] == 1:
                     conversation_data['winner'] = 'model_a'
                 elif row['winner_model_b'] == 1:
@@ -79,17 +79,17 @@ class LMArenaDataLoader:
                 else:
                     conversation_data['winner'] = 'unknown'
                 
-                # 시간 정보 (9개월 범위에서 임의 생성)
+                # Time information (randomly generated within 9-month range)
                 start_date = pd.Timestamp('2023-04-01')
                 end_date = pd.Timestamp('2024-01-01')
                 days_offset = int(np.random.exponential(120))
                 days_offset = min(days_offset, 270)
                 conversation_data['timestamp'] = start_date + pd.Timedelta(days=days_offset)
                 
-                # 쿼리 특성 추출
+                # Extract query characteristics
                 prompt_text = str(conversation_data['prompt'])
                 
-                # 프롬프트가 리스트 형태의 문자열인 경우 처리
+                # Handle case where prompt is in list format string
                 if prompt_text.startswith('[') and prompt_text.endswith(']'):
                     try:
                         import ast
@@ -97,22 +97,22 @@ class LMArenaDataLoader:
                         if isinstance(prompt_list, list):
                             prompt_text = ' '.join(str(p) for p in prompt_list)
                     except:
-                        pass  # 파싱 실패시 원본 사용
+                        pass  # Use original if parsing fails
                 
                 conversation_data['query_length'] = len(prompt_text)
                 conversation_data['query_complexity'] = self._estimate_complexity(prompt_text)
                 conversation_data['query_type'] = self._classify_query_type(prompt_text)
                 
-                # 응답 토큰 수 추정 (더 정확한 방식)
+                # Estimate response token count (more accurate method)
                 response_a_text = str(conversation_data['response_a'])
                 response_b_text = str(conversation_data['response_b'])
                 
-                # 단어 수 기반 토큰 추정 (영어: 1.3배, 다른 언어: 1.5배)
+                # Token estimation based on word count (English: 1.3x, other languages: 1.5x)
                 def estimate_tokens(text):
                     if not text or text == 'nan':
-                        return 50  # 기본값
+                        return 50  # Default value
                     words = len(text.split())
-                    # 대략적 토큰 수 (GPT 토크나이저 기준)
+                    # Approximate token count (based on GPT tokenizer)
                     return max(10, int(words * 1.3))
                 
                 conversation_data['response_tokens_a'] = estimate_tokens(response_a_text)
@@ -120,39 +120,39 @@ class LMArenaDataLoader:
                 
                 processed_conversations.append(conversation_data)
                 
-                # 진행 상황 출력 (5000개마다)
+                # Progress output (every 5000 entries)
                 if idx % 5000 == 0:
-                    print(f"  📈 처리 중... {idx:,}/{len(raw_data):,}")
+                    print(f"  📈 Processing... {idx:,}/{len(raw_data):,}")
             
             result_df = pd.DataFrame(processed_conversations)
-            print(f"✅ 변환 완료: {len(result_df):,} 개의 대화")
+            print(f"✅ Conversion complete: {len(result_df):,} conversations")
             
-            # 데이터 품질 체크
-            print(f"📊 데이터 품질 체크:")
-            print(f"  • 고유 모델 A: {result_df['model_a'].nunique()}개")
-            print(f"  • 고유 모델 B: {result_df['model_b'].nunique()}개")
-            print(f"  • 승자 분포: {result_df['winner'].value_counts().to_dict()}")
-            print(f"  • 쿼리 타입 분포: {result_df['query_type'].value_counts().to_dict()}")
-            print(f"  • 평균 쿼리 길이: {result_df['query_length'].mean():.1f}")
-            print(f"  • 평균 응답 토큰 A: {result_df['response_tokens_a'].mean():.1f}")
-            print(f"  • 평균 응답 토큰 B: {result_df['response_tokens_b'].mean():.1f}")
+            # Data quality check
+            print(f"📊 Data quality check:")
+            print(f"  • Unique models A: {result_df['model_a'].nunique()}")
+            print(f"  • Unique models B: {result_df['model_b'].nunique()}")
+            print(f"  • Winner distribution: {result_df['winner'].value_counts().to_dict()}")
+            print(f"  • Query type distribution: {result_df['query_type'].value_counts().to_dict()}")
+            print(f"  • Average query length: {result_df['query_length'].mean():.1f}")
+            print(f"  • Average response tokens A: {result_df['response_tokens_a'].mean():.1f}")
+            print(f"  • Average response tokens B: {result_df['response_tokens_b'].mean():.1f}")
             
             return result_df
             
         except Exception as e:
-            print(f"❌ 데이터 변환 실패: {e}")
-            print("💡 시뮬레이션 데이터로 대체합니다.")
+            print(f"❌ Data conversion failed: {e}")
+            print("💡 Replacing with simulation data.")
             return self._generate_simulated_data()
     
     def _estimate_complexity(self, text: str) -> float:
-        """텍스트 복잡도 추정 (개선된 버전)"""
+        """Estimate text complexity (improved version)"""
         if not text or text == 'nan':
             return 0.5
         
         text = str(text).lower()
-        complexity_score = 0.2  # 기본 점수
+        complexity_score = 0.2  # Base score
         
-        # 길이 기반 복잡도
+        # Length-based complexity
         if len(text) > 500:
             complexity_score += 0.3
         elif len(text) > 200:
@@ -160,14 +160,14 @@ class LMArenaDataLoader:
         elif len(text) > 100:
             complexity_score += 0.1
         
-        # 문장 수 기반
+        # Sentence count-based
         sentences = text.count('.') + text.count('!') + text.count('?')
         if sentences > 5:
             complexity_score += 0.15
         elif sentences > 2:
             complexity_score += 0.1
         
-        # 복잡한 키워드 기반
+        # Complex keywords-based
         complex_keywords = [
             'algorithm', 'analysis', 'technical', 'code', 'math', 'explain', 'complex',
             'implementation', 'optimization', 'architecture', 'design', 'strategy',
@@ -176,50 +176,44 @@ class LMArenaDataLoader:
         keyword_count = sum(1 for keyword in complex_keywords if keyword in text)
         complexity_score += min(0.3, keyword_count * 0.05)
         
-        # 코드 블록이나 수식 감지
+        # Detect code blocks or equations
         if '```' in text or '$$' in text or 'def ' in text or 'class ' in text:
             complexity_score += 0.2
         
         return min(1.0, complexity_score)
     
     def _classify_query_type(self, text: str) -> str:
-        """쿼리 타입 분류 (개선된 버전)"""
+        """Classify query type (improved version)"""
         if not text or text == 'nan':
             return 'general'
         
         text = str(text).lower()
         
-        # 코딩 관련
+        # Coding-related
         coding_keywords = ['code', 'programming', 'function', 'python', 'javascript', 
                           'algorithm', 'debug', 'syntax', 'implementation', '```']
         if any(word in text for word in coding_keywords):
             return 'coding'
         
-        # 수학 관련  
+        # Math-related  
         math_keywords = ['math', 'calculate', 'equation', 'solve', 'formula', 
                         'theorem', 'proof', 'derivative', 'integral']
         if any(word in text for word in math_keywords):
             return 'math'
         
-        # 창작 관련
-        creative_keywords = ['write', 'story', 'creative', 'poem', 'fiction', 
-                           'character', 'plot', 'narrative', 'novel']
+        # Creative-related
+        creative_keywords = ['creative', 'story', 'poem', 'write', 'imagine', 
+                           'fiction', 'narrative', 'character', 'plot']
         if any(word in text for word in creative_keywords):
             return 'creative'
         
-        # 분석 관련
-        analysis_keywords = ['analyze', 'compare', 'evaluate', 'explain', 'discuss',
-                           'argument', 'critique', 'assessment', 'review', 'examine']
+        # Analysis-related
+        analysis_keywords = ['analyze', 'comparison', 'evaluate', 'assess', 
+                           'review', 'critique', 'examine', 'investigate']
         if any(word in text for word in analysis_keywords):
             return 'analysis'
         
-        # 지식 질문
-        knowledge_keywords = ['what', 'how', 'why', 'when', 'where', 'who', 
-                            'definition', 'meaning', 'history', 'fact']
-        if any(word in text for word in knowledge_keywords):
-            return 'knowledge'
-        
-        return 'general'
+        return 'knowledge'  # Default
     
     def _generate_simulated_data(self, n_samples: int = 50000) -> pd.DataFrame:
         """

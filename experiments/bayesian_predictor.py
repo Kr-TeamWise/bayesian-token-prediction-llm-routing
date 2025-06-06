@@ -9,17 +9,17 @@ import warnings
 warnings.filterwarnings('ignore')
 
 class BayesianTokenPredictor:
-    """베이지안 접근법을 사용한 토큰 예측 모델"""
+    """Bayesian token prediction model using Bayesian approach"""
     
     def __init__(self, model_families: Dict[str, List[str]]):
         self.model_families = model_families
-        self.models = {}  # 모델별 예측기
-        self.uncertainty_models = {}  # 불확실성 예측기
-        self.family_priors = {}  # 가족별 사전 분포
+        self.models = {}  # Model-specific predictors
+        self.uncertainty_models = {}  # Uncertainty predictors
+        self.family_priors = {}  # Family-wise prior distributions
         self.feature_scaler = StandardScaler()
         self.is_fitted = False
         
-        # 모델별 비용 정보 (토큰당 비용)
+        # Model cost information (cost per token)
         self.model_costs = {
             'gpt-4-1106-preview': 0.00003,
             'gpt-4-0613': 0.00006,
@@ -39,11 +39,11 @@ class BayesianTokenPredictor:
         }
         
     def prepare_training_data(self, data: pd.DataFrame) -> pd.DataFrame:
-        """훈련 데이터 준비 (모델별로 변환)"""
+        """Prepare training data (convert by model)"""
         training_data = []
         
         for idx, row in data.iterrows():
-            # Model A 데이터
+            # Model A data
             features = self._extract_query_features(row)
             training_data.append({
                 'model': row['model_a'],
@@ -54,7 +54,7 @@ class BayesianTokenPredictor:
                 'timestamp': row['timestamp']
             })
             
-            # Model B 데이터
+            # Model B data
             training_data.append({
                 'model': row['model_b'],
                 'response_tokens': row['response_tokens_b'],
@@ -67,45 +67,45 @@ class BayesianTokenPredictor:
         return pd.DataFrame(training_data)
     
     def _extract_query_features(self, row: pd.Series) -> np.ndarray:
-        """쿼리에서 특성 추출 - 모델 훈련과 동일한 형식"""
+        """Extract features from query - same format as model training"""
         features = [
-            row.get('query_length', 50) / 100.0,  # 정규화된 쿼리 길이
-            row.get('query_complexity', 0.5),     # 복잡도
-            1.0 if row.get('query_type', 'knowledge') == 'coding' else 0.0,     # 코딩 쿼리
-            1.0 if row.get('query_type', 'knowledge') == 'creative' else 0.0,   # 창의적 쿼리
-            1.0 if row.get('query_type', 'knowledge') == 'analysis' else 0.0,   # 분석 쿼리
-            1.0 if row.get('query_type', 'knowledge') == 'math' else 0.0,       # 수학 쿼리
-            1.0 if row.get('query_type', 'knowledge') == 'knowledge' else 0.0,  # 지식 쿼리
+            row.get('query_length', 50) / 100.0,  # Normalized query length
+            row.get('query_complexity', 0.5),     # Complexity
+            1.0 if row.get('query_type', 'knowledge') == 'coding' else 0.0,     # Coding query
+            1.0 if row.get('query_type', 'knowledge') == 'creative' else 0.0,   # Creative query
+            1.0 if row.get('query_type', 'knowledge') == 'analysis' else 0.0,   # Analysis query
+            1.0 if row.get('query_type', 'knowledge') == 'math' else 0.0,       # Math query
+            1.0 if row.get('query_type', 'knowledge') == 'knowledge' else 0.0,  # Knowledge query
         ]
         
-        # 모델별 특성은 기본값으로 설정 (쿼리 시점에서는 모델이 정해지지 않음)
-        # _extract_model_features와 동일한 차원을 맞추기 위함
+        # Model-specific features are set to default values (since model is not determined at query time)
+        # To match dimensions with _extract_model_features
         features.extend([
-            0.0,  # is_openai (기본값)
-            0.0,  # is_anthropic (기본값)
-            0.0,  # is_google (기본값)
-            0.0,  # is_meta (기본값)
-            0.0,  # is_mistral (기본값)
-            0.5,  # model_size (중간값)
-            0.5   # verbosity_score (중간값)
+            0.0,  # is_openai (default)
+            0.0,  # is_anthropic (default)
+            0.0,  # is_google (default)
+            0.0,  # is_meta (default)
+            0.0,  # is_mistral (default)
+            0.5,  # model_size (medium value)
+            0.5   # verbosity_score (medium value)
         ])
         
         return np.array(features)
     
     def fit_family_priors(self, training_data: pd.DataFrame):
-        """모델 가족별 사전 분포 학습"""
-        print("🔄 가족별 사전 분포 학습 중...")
+        """Learn family-wise prior distributions"""
+        print("🔄 Learning family-wise prior distributions...")
         
-        # 모델별 데이터 준비 - 실제 컬럼명 사용
+        # Prepare model-specific data - use actual column names
         expanded_data = []
         for _, row in training_data.iterrows():
-            # model_a 데이터
+            # model_a data
             expanded_data.append({
                 'model': row['model_a'],
                 'response_tokens': row['response_tokens_a'],
                 'complexity': row.get('query_complexity', 0.5)
             })
-            # model_b 데이터
+            # model_b data
             expanded_data.append({
                 'model': row['model_b'],
                 'response_tokens': row['response_tokens_b'],
@@ -118,16 +118,16 @@ class BayesianTokenPredictor:
             family_data = expanded_df[expanded_df['model'].isin(models)]
             
             if len(family_data) > 50:
-                # 가족 내 평균 및 분산 계산
+                # Calculate family-wise mean and variance
                 mean_tokens = family_data['response_tokens'].mean()
                 std_tokens = family_data['response_tokens'].std()
                 
-                # 복잡도별 특성 - 컬럼명 수정
+                # Complexity-wise characteristics - fix column name
                 complexity_correlation = family_data['response_tokens'].corr(family_data['complexity'])
                 
-                # NaN 처리 - 상관관계가 계산되지 않으면 기본값 사용
+                # Handle NaN - use default value if correlation cannot be calculated
                 if pd.isna(complexity_correlation):
-                    # 모델별 특성에 따른 기본 상관관계 설정
+                    # Set default correlation based on model characteristics
                     if family == 'openai':
                         complexity_correlation = 0.45
                     elif family == 'anthropic':
@@ -146,59 +146,59 @@ class BayesianTokenPredictor:
                     'n_samples': len(family_data)
                 }
                 
-                print(f"  📊 {family}: μ={mean_tokens:.1f}, σ={std_tokens:.1f}, 복잡도 상관관계={complexity_correlation:.3f}")
+                print(f"  📊 {family}: μ={mean_tokens:.1f}, σ={std_tokens:.1f}, complexity correlation={complexity_correlation:.3f}")
             else:
-                # 데이터 부족 시 기본값 설정
+                # Set default values when data is insufficient
                 self.family_priors[family] = {
                     'mean': 150.0,
                     'std': 37.5,
                     'complexity_correlation': 0.45,
                     'n_samples': 0
                 }
-                print(f"  ⚠️ {family}: 데이터 부족 ({len(family_data)}개)")
+                print(f"  ⚠️ {family}: Insufficient data ({len(family_data)} samples)")
     
     def fit(self, training_data: pd.DataFrame) -> Dict:
-        """훈련 데이터로 모델 학습"""
+        """Train model with training data"""
         
-        print("📋 훈련 데이터 준비 완료:", f"{len(training_data):,}", "개 샘플")
-        print("🤖 베이지안 토큰 예측 모델 훈련 중...")
+        print("📋 Training data prepared:", f"{len(training_data):,}", "samples")
+        print("🤖 Training Bayesian token prediction model...")
         
-        # 가족별 사전 분포 먼저 학습
+        # Learn family-wise priors first
         self.fit_family_priors(training_data)
         
-        # 모델별 데이터 준비 - 실제 컬럼명 사용
+        # Prepare model-specific data - use actual column names
         expanded_data = []
         for _, row in training_data.iterrows():
-            # model_a 데이터
+            # model_a data
             expanded_data.append({
                 'model': row['model_a'],
                 'response_tokens': row['response_tokens_a'],
                 'query_length': row.get('query_length', 50),
-                'complexity': row.get('query_complexity', 0.5),  # query_complexity 사용
+                'complexity': row.get('query_complexity', 0.5),  # Use query_complexity
                 'query_type': row.get('query_type', 'knowledge')
             })
-            # model_b 데이터
+            # model_b data
             expanded_data.append({
                 'model': row['model_b'],
                 'response_tokens': row['response_tokens_b'],
                 'query_length': row.get('query_length', 50),
-                'complexity': row.get('query_complexity', 0.5),  # query_complexity 사용
+                'complexity': row.get('query_complexity', 0.5),  # Use query_complexity
                 'query_type': row.get('query_type', 'knowledge')
             })
         
         expanded_df = pd.DataFrame(expanded_data)
         
-        # 결과 딕셔너리 초기화
+        # Initialize results dictionary
         training_results = {}
         
-        # 각 모델별로 훈련
+        # Train for each model
         for model in expanded_df['model'].unique():
             model_data = expanded_df[expanded_df['model'] == model]
             
-            if len(model_data) < 200:  # 최소 샘플 수 증가
+            if len(model_data) < 200:  # Increase minimum sample size
                 continue
                 
-            # 특성 벡터 생성
+            # Generate feature vectors
             X = []
             y = []
             
@@ -210,14 +210,14 @@ class BayesianTokenPredictor:
             X = np.array(X)
             y = np.array(y)
             
-            # 특성 정규화
+            # Feature normalization
             if not hasattr(self, 'feature_scaler') or not hasattr(self.feature_scaler, 'mean_'):
                 self.feature_scaler = StandardScaler()
                 X_scaled = self.feature_scaler.fit_transform(X)
             else:
                 X_scaled = self.feature_scaler.transform(X)
             
-            # K-fold Cross Validation (3-fold)을 통한 더 엄격한 평가
+            # K-fold Cross Validation (3-fold) for more strict evaluation
             from sklearn.model_selection import KFold
             kf = KFold(n_splits=3, shuffle=True, random_state=42)
             
@@ -229,9 +229,9 @@ class BayesianTokenPredictor:
                 X_train, X_val = X_scaled[train_idx], X_scaled[val_idx]
                 y_train, y_val = y[train_idx], y[val_idx]
                 
-                # 베이지안 선형 회귀 - 더 강한 정규화
+                # Bayesian linear regression - stronger regularization
                 bayesian_model = BayesianRidge(
-                    alpha_1=1e-4,  # 더 강한 regularization
+                    alpha_1=1e-4,  # Stronger regularization
                     alpha_2=1e-4,
                     lambda_1=1e-4,
                     lambda_2=1e-4,
@@ -240,46 +240,46 @@ class BayesianTokenPredictor:
                     max_iter=300
                 )
                 
-                # 훈련
+                # Train
                 bayesian_model.fit(X_train, y_train)
                 
-                # 검증
+                # Validate
                 y_pred = bayesian_model.predict(X_val)
                 val_mae = mean_absolute_error(y_val, y_pred)
                 
                 fold_scores.append(val_mae)
                 
-                # 최고 성능 모델 저장
+                # Save best performing model
                 if val_mae < best_score:
                     best_score = val_mae
                     best_model = bayesian_model
             
-            # 최고 성능 모델을 최종 모델로 사용
+            # Use best performing model as final model
             self.models[model] = best_model
             
-            # 전체 데이터에 대한 최종 평가 (홀드아웃)
+            # Final evaluation (holdout) for entire dataset
             n_samples = len(y)
-            n_holdout = max(50, int(n_samples * 0.3))  # 30% 홀드아웃
+            n_holdout = max(50, int(n_samples * 0.3))  # 30% holdout
             
-            # 마지막 30%를 홀드아웃으로 사용 (시간순)
+            # Use last 30% as holdout (time-ordered)
             holdout_idx = slice(-n_holdout, None)
             train_idx = slice(None, -n_holdout)
             
             X_holdout = X_scaled[holdout_idx]
             y_holdout = y[holdout_idx]
             
-            # 홀드아웃 데이터로 최종 평가
+            # Final evaluation with holdout data
             y_pred_final = best_model.predict(X_holdout)
             
-            # 성능 메트릭 계산
+            # Calculate performance metrics
             mae = mean_absolute_error(y_holdout, y_pred_final)
             mse = mean_squared_error(y_holdout, y_pred_final)
             r2 = r2_score(y_holdout, y_pred_final)
             
-            # MAPE 계산 (0으로 나누기 방지)
+            # MAPE calculation (avoid division by zero)
             mape = np.mean(np.abs((y_holdout - y_pred_final) / np.maximum(y_holdout, 1))) * 100
             
-            # Cross-validation 평균 MAE도 포함
+            # Include Cross-validation average MAE
             cv_mae = np.mean(fold_scores)
             
             training_results[model] = {
@@ -292,56 +292,55 @@ class BayesianTokenPredictor:
                 'total_samples': len(model_data)
             }
             
-            print(f"✅ {model}: R²={r2:.3f}, MAE={mae:.1f}, CV-MAE={cv_mae:.1f}, MAPE={mape:.1f}% ({len(model_data)} 샘플)")
+            print(f"✅ {model}: R²={r2:.3f}, MAE={mae:.1f}, CV-MAE={cv_mae:.1f}, MAPE={mape:.1f}% ({len(model_data)} samples)")
         
         self.is_fitted = True
         return training_results
     
     def predict_with_uncertainty(self, features: np.ndarray, model: str) -> Dict:
-        """불확실성을 포함한 예측"""
+        """Predict with uncertainty"""
         if not self.is_fitted:
-            raise ValueError("모델이 훈련되지 않았습니다. fit()을 먼저 실행하세요.")
+            raise ValueError("Model not trained. Please run fit() first.")
         
-        # 특성 정규화
+        # Feature normalization
         if features.ndim == 1:
             features = features.reshape(1, -1)
         
         features_scaled = self.feature_scaler.transform(features)
         
         if model in self.models:
-            # 기존 모델 예측
+            # Predict with existing model
             return self._predict_existing_model(features_scaled, model)
         else:
-            # 새로운 모델 - 가족 기반 예측
+            # New model - family-based prediction
             return self._predict_from_family(features_scaled, model)
     
     def _predict_existing_model(self, features_scaled: np.ndarray, model: str) -> Dict:
-        """기존 모델에 대한 예측"""
-        # 점 예측 (BayesianRidge는 return_std를 지원하지 않음)
+        """Predict with existing model"""
+        # Point prediction (BayesianRidge does not support return_std)
         mean_pred = self.models[model].predict(features_scaled)
         
-        # 불확실성 추정 (베이지안 선형 회귀의 특성 이용)
-        # 예측 분산을 모델의 불확실성으로 사용
+        # Estimate uncertainty (use model's uncertainty as uncertainty)
         if hasattr(self.models[model], 'sigma_'):
-            # BayesianRidge의 노이즈 분산 사용
+            # Use BayesianRidge's noise variance
             sigma = self.models[model].sigma_
             if np.isscalar(sigma):
                 std_pred = np.full(len(mean_pred), np.sqrt(sigma))
             else:
-                # sigma_가 행렬인 경우 대각선의 평균 사용
+                # Use average of diagonal if sigma is a matrix
                 sigma_scalar = np.mean(np.diag(sigma)) if sigma.ndim > 1 else np.mean(sigma)
                 std_pred = np.full(len(mean_pred), np.sqrt(max(0.1, sigma_scalar)))
         else:
-            # 기본 불확실성 설정
-            std_pred = np.full(len(mean_pred), 15.0)  # 적당한 불확실성
+            # Set default uncertainty
+            std_pred = np.full(len(mean_pred), 15.0)  # Reasonable uncertainty
         
-        # 알레아토릭 불확실성 (데이터 노이즈) - 모델 고유의 변동성
+        # Aleatoric uncertainty (model-specific variation)
         aleatoric_uncertainty = std_pred * 0.6
         
-        # 에피스테믹 불확실성 (모델 불확실성) - 예측의 불확실성
+        # Epistemic uncertainty (model uncertainty) - uncertainty in prediction
         epistemic_uncertainty = std_pred * 0.8
         
-        # 총 불확실성
+        # Total uncertainty
         total_uncertainty = np.sqrt(aleatoric_uncertainty**2 + epistemic_uncertainty**2)
         
         return {
@@ -355,8 +354,8 @@ class BayesianTokenPredictor:
         }
     
     def _predict_from_family(self, features_scaled: np.ndarray, model: str) -> Dict:
-        """가족 기반 예측 (콜드 스타트용)"""
-        # 모델의 가족 찾기
+        """Family-based prediction (for cold start)"""
+        # Find model's family
         model_family = None
         for family, models in self.model_families.items():
             if model in models:
@@ -366,16 +365,16 @@ class BayesianTokenPredictor:
         if model_family and model_family in self.family_priors:
             prior = self.family_priors[model_family]
             
-            # 복잡도 기반 조정
-            if features_scaled.shape[1] >= 2:  # 복잡도 특성이 있는 경우
+            # Complexity-based adjustment
+            if features_scaled.shape[1] >= 2:  # If complexity feature exists
                 complexity_adjustment = features_scaled[0, 1] * prior['complexity_correlation'] * 50
             else:
                 complexity_adjustment = 0
             
-            # 가족 평균 + 복잡도 조정
+            # Family mean + complexity adjustment
             mean_pred = np.full(len(features_scaled), prior['mean'] + complexity_adjustment)
             
-            # 불확실성: 가족 내 분산 + 불확실성 페널티
+            # Uncertainty: Family variance + uncertainty penalty
             uncertainty_penalty = (1 - prior['n_samples'] / 1000) * prior['std']
             uncertainty = np.full(len(features_scaled), prior['std'] + uncertainty_penalty)
             
@@ -390,7 +389,7 @@ class BayesianTokenPredictor:
                 'family': model_family
             }
         
-        # 기본값 (가족 정보가 없는 경우)
+        # Default value (if no family information)
         default_mean = 150
         default_std = 75
         
@@ -405,14 +404,14 @@ class BayesianTokenPredictor:
         }
     
     def evaluate(self, test_data: pd.DataFrame) -> Dict:
-        """예측 성능 평가"""
+        """Evaluate prediction performance"""
         if not self.is_fitted:
-            raise ValueError("모델이 훈련되지 않았습니다.")
+            raise ValueError("Model not trained.")
         
-        # 테스트 데이터를 모델 훈련과 동일한 형식으로 준비
+        # Prepare test data in same format as model training
         expanded_data = []
         for _, row in test_data.iterrows():
-            # model_a 데이터
+            # model_a data
             expanded_data.append({
                 'model': row['model_a'],
                 'response_tokens': row['response_tokens_a'],
@@ -420,7 +419,7 @@ class BayesianTokenPredictor:
                 'complexity': row.get('query_complexity', 0.5),
                 'query_type': row.get('query_type', 'knowledge')
             })
-            # model_b 데이터
+            # model_b data
             expanded_data.append({
                 'model': row['model_b'],
                 'response_tokens': row['response_tokens_b'],
@@ -440,7 +439,7 @@ class BayesianTokenPredictor:
             
             model_test_data = expanded_df[model_mask]
             
-            # 모델 훈련과 동일한 특성 추출 방식 사용
+            # Use same feature extraction method as model training
             X = []
             y_true = []
             
@@ -455,23 +454,23 @@ class BayesianTokenPredictor:
             pred_result = self.predict_with_uncertainty(X, model)
             y_pred = pred_result['mean']
             
-            # 실제 성능 메트릭 계산 (인위적 조작 제거)
+            # Calculate actual performance metrics (avoid artificial manipulation)
             mae = mean_absolute_error(y_true, y_pred)
             rmse = np.sqrt(mean_squared_error(y_true, y_pred))
             r2 = r2_score(y_true, y_pred)
             
-            # MAPE 계산 (0으로 나누기 방지)
+            # MAPE calculation (avoid division by zero)
             mape = np.mean(np.abs((y_true - y_pred) / np.maximum(y_true, 1))) * 100
             
-            # 불확실성 교정 검증 (95% 신뢰구간)
+            # Uncertainty calibration verification (95% confidence interval)
             in_bounds = ((y_true >= pred_result['lower_bound']) & 
                         (y_true <= pred_result['upper_bound'])).mean()
             
-            # 불확실성의 정보성 (예측 오차와 불확실성의 상관관계)
+            # Uncertainty information (correlation between prediction error and uncertainty)
             abs_errors = np.abs(y_true - y_pred)
             uncertainty_correlation = np.corrcoef(abs_errors, pred_result['std'])[0, 1]
             if np.isnan(uncertainty_correlation):
-                uncertainty_correlation = 0.3  # 기본값
+                uncertainty_correlation = 0.3  # Default value
             
             results[model] = {
                 'mae': mae,
@@ -486,7 +485,7 @@ class BayesianTokenPredictor:
         return results
     
     def get_model_info(self) -> Dict:
-        """모델 정보 반환"""
+        """Return model information"""
         return {
             'trained_models': list(self.models.keys()),
             'family_priors': self.family_priors,
@@ -495,12 +494,12 @@ class BayesianTokenPredictor:
         }
 
     def _get_model_family(self, model: str) -> str:
-        """모델의 가족 분류"""
+        """Model family classification"""
         for family, models in self.model_families.items():
             if model in models:
                 return family
         
-        # 모델명에서 가족 추론
+        # Family inference from model name
         model_lower = model.lower()
         if 'gpt' in model_lower or 'openai' in model_lower:
             return 'openai'
@@ -516,70 +515,70 @@ class BayesianTokenPredictor:
             return 'other'
 
     def _extract_model_features(self, row) -> np.ndarray:
-        """모델별 특성 추출 - 모델 고유 특성 포함"""
-        # 기본 쿼리 특성
+        """Extract model-specific features - include model-specific features"""
+        # Basic query features
         features = [
-            row['query_length'] / 100.0,  # 정규화된 쿼리 길이
-            row['complexity'],            # 복잡도
-            1.0 if row['query_type'] == 'coding' else 0.0,     # 코딩 쿼리
-            1.0 if row['query_type'] == 'creative' else 0.0,   # 창의적 쿼리
-            1.0 if row['query_type'] == 'analysis' else 0.0,   # 분석 쿼리
-            1.0 if row['query_type'] == 'math' else 0.0,       # 수학 쿼리
-            1.0 if row['query_type'] == 'knowledge' else 0.0,  # 지식 쿼리
+            row['query_length'] / 100.0,  # Normalized query length
+            row['complexity'],            # Complexity
+            1.0 if row['query_type'] == 'coding' else 0.0,     # Coding query
+            1.0 if row['query_type'] == 'creative' else 0.0,   # Creative query
+            1.0 if row['query_type'] == 'analysis' else 0.0,   # Analysis query
+            1.0 if row['query_type'] == 'math' else 0.0,       # Math query
+            1.0 if row['query_type'] == 'knowledge' else 0.0,  # Knowledge query
         ]
         
-        # 모델별 고유 특성 추가
+        # Model-specific features
         model = row.get('model', '')
         model_lower = model.lower()
         
-        # 모델 가족별 특성
+        # Model family features
         is_openai = 1.0 if ('gpt' in model_lower or 'openai' in model_lower) else 0.0
         is_anthropic = 1.0 if ('claude' in model_lower) else 0.0
         is_google = 1.0 if ('gemini' in model_lower or 'palm' in model_lower or 'bard' in model_lower) else 0.0
         is_meta = 1.0 if ('llama' in model_lower) else 0.0
         is_mistral = 1.0 if ('mistral' in model_lower or 'mixtral' in model_lower) else 0.0
         
-        # 모델 크기 특성
-        model_size = 0.0  # 기본값
+        # Model size features
+        model_size = 0.0  # Default value
         if '70b' in model_lower or '65b' in model_lower:
-            model_size = 1.0  # 대형 모델
+            model_size = 1.0  # Large model
         elif '30b' in model_lower or '33b' in model_lower:
-            model_size = 0.8  # 중대형 모델
+            model_size = 0.8  # Medium-large model
         elif '13b' in model_lower or '14b' in model_lower or '15b' in model_lower:
-            model_size = 0.6  # 중형 모델
+            model_size = 0.6  # Medium model
         elif '7b' in model_lower or '6b' in model_lower:
-            model_size = 0.4  # 소형 모델
+            model_size = 0.4  # Small model
         elif '3b' in model_lower:
-            model_size = 0.2  # 초소형 모델
+            model_size = 0.2  # Tiny model
         elif 'gpt-4' in model_lower:
-            model_size = 1.0  # GPT-4는 대형으로 간주
+            model_size = 1.0  # GPT-4 is considered large
         elif 'gpt-3.5' in model_lower:
-            model_size = 0.6  # GPT-3.5는 중형으로 간주
+            model_size = 0.6  # GPT-3.5 is considered medium
         elif 'claude-2' in model_lower:
-            model_size = 0.9  # Claude-2는 대형으로 간주
+            model_size = 0.9  # Claude-2 is considered large
         elif 'claude-instant' in model_lower:
-            model_size = 0.5  # Claude Instant는 중소형
+            model_size = 0.5  # Claude Instant is considered small
         
-        # 모델별 토큰 생성 경향성 (기존 시뮬레이션 데이터 기반)
-        # 각 모델의 고유한 토큰 생성 패턴을 인코딩
-        verbosity_score = 0.5  # 기본값
+        # Model-specific token generation tendency (based on existing simulation data)
+        # Encode each model's unique token generation pattern
+        verbosity_score = 0.5  # Default value
         
         if 'claude' in model_lower:
-            verbosity_score = 0.8  # Claude는 더 길게 답변하는 경향
+            verbosity_score = 0.8  # Claude tends to answer longer
         elif 'gpt-4' in model_lower:
-            verbosity_score = 0.7  # GPT-4는 상당히 상세한 답변
+            verbosity_score = 0.7  # GPT-4 tends to answer more detailed
         elif 'gpt-3.5' in model_lower:
-            verbosity_score = 0.6  # GPT-3.5는 중간 길이
+            verbosity_score = 0.6  # GPT-3.5 tends to answer medium length
         elif 'gemini' in model_lower or 'palm' in model_lower:
-            verbosity_score = 0.5  # Google 모델들은 간결한 편
+            verbosity_score = 0.5  # Google models tend to answer more concisely
         elif 'llama' in model_lower:
-            verbosity_score = 0.4  # Llama는 비교적 간결
+            verbosity_score = 0.4  # Llama tends to answer more concisely
         elif 'mixtral' in model_lower:
-            verbosity_score = 0.6  # Mixtral은 중간 수준
+            verbosity_score = 0.6  # Mixtral tends to answer medium level
         elif 'mistral' in model_lower:
-            verbosity_score = 0.5  # Mistral은 간결한 편
+            verbosity_score = 0.5  # Mistral tends to answer more concisely
         
-        # 특성 벡터에 모델별 특성 추가
+        # Add model-specific features to feature vector
         features.extend([
             is_openai,
             is_anthropic, 
@@ -593,14 +592,14 @@ class BayesianTokenPredictor:
         return np.array(features)
 
 class FeatureExtractor:
-    """쿼리 특성 추출기"""
+    """Query feature extractor"""
     
     @staticmethod
     def extract_query_features(data: pd.DataFrame) -> pd.DataFrame:
-        """쿼리 특성 추출"""
+        """Extract query features"""
         features = pd.DataFrame()
         
-        # 기본 특성
+        # Basic features
         features['query_length'] = data['query_length']
         features['query_complexity'] = data['query_complexity']
         features['hour'] = data['hour']
@@ -608,11 +607,11 @@ class FeatureExtractor:
         features['month'] = data['month']
         features['length_normalized'] = data['length_normalized']
         
-        # 쿼리 타입 원-핫 인코딩
+        # Query type one-hot encoding
         query_type_dummies = pd.get_dummies(data['query_type'], prefix='type')
         features = pd.concat([features, query_type_dummies], axis=1)
         
-        # 시간적 특성
+        # Time-based features
         features['is_weekend'] = (data['day_of_week'] >= 5).astype(int)
         features['is_business_hours'] = ((data['hour'] >= 9) & (data['hour'] <= 17)).astype(int)
         
