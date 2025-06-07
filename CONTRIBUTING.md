@@ -46,7 +46,7 @@ Thank you for your interest in contributing to our research on Bayesian Framewor
 
 ```bash
 # Fork and clone the repository
-git clone https://github.com/[your-username]/bayesian-llm-routing.git
+git clone https://github.com/Kr-TeamWise bayesian-token-prediction-llm-routing
 cd bayesian-llm-routing
 
 # Install dependencies in development mode

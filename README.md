@@ -107,7 +107,7 @@ This project implements a novel Bayesian framework for routing queries to Large 
 1. Clone the repository:
 
 ```bash
-git clone <repository-url>
+git clone <https://github.com/Kr-TeamWise/bayesian-token-prediction-llm-routing>
 cd research
 ```
 
