@@ -1,3 +1,51 @@
+"""
+Thompson Sampling Router for Large Language Model Selection
+
+This module implements a Thompson Sampling-based router that optimally balances
+exploration and exploitation for LLM selection under uncertainty.
+
+Mathematical Foundation:
+=======================
+
+Thompson Sampling Framework:
+1. Prior beliefs: π_i ~ Beta(α_i, β_i) for each model i
+2. Posterior updates: α_i ← α_i + successes, β_i ← β_i + failures  
+3. Model selection: i* = argmax_i π_i where π_i ~ Beta(α_i, β_i)
+
+Utility Function:
+The router maximizes expected utility U_i(x_j) for query j and model i:
+    U_i(x_j) = E[Quality_i] - λ × E[Cost_i(x_j)] - γ × Uncertainty_i(x_j)
+
+Where:
+- E[Quality_i] = α_i / (α_i + β_i): expected performance from Beta posterior
+- E[Cost_i(x_j)] = predicted_tokens_i × cost_per_token_i: expected monetary cost
+- Uncertainty_i(x_j): prediction uncertainty from Bayesian model
+- λ: cost sensitivity parameter (default: 0.3)  
+- γ: risk tolerance parameter (default: 0.25)
+
+Exploration Strategy:
+- Adaptive exploration rate: ε_t = max(0.05, ε_0 × decay_rate^t)
+- Upper Confidence Bound (UCB) exploration: π_i + c√(ln t / n_i)
+- Uncertainty-guided exploration: prefers models with high prediction uncertainty
+
+Cold Start Mechanism:
+- Family-informed priors: α_new = performance_family × confidence
+- Rapid convergence: leverages family relationships for faster learning
+- Progressive refinement: balances family knowledge with model-specific evidence
+
+Key Features:
+============
+- Multi-objective Optimization: balances quality, cost, and uncertainty
+- Adaptive Learning: continuously updates model performance beliefs
+- Robust Exploration: prevents premature convergence to suboptimal models
+- Economic Awareness: explicitly considers deployment costs
+
+Classes:
+========
+- ThompsonSamplingRouter: Main routing algorithm implementation
+- ColdStartExperiment: Experimental framework for new model evaluation
+"""
+
 import numpy as np
 import pandas as pd
 from typing import Dict, List, Tuple, Optional

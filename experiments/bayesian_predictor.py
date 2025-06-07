@@ -1,3 +1,42 @@
+"""
+Bayesian Token Prediction with Hierarchical Model Family Structure
+
+This module implements the core Bayesian token prediction framework that leverages
+model family relationships for improved prediction accuracy and uncertainty quantification.
+
+Mathematical Foundation:
+======================
+The hierarchical Bayesian model captures both within-family and across-family variations:
+
+1. Family-level priors:
+   μ_family ~ N(μ_0, σ²_0)
+   σ²_family ~ InverseGamma(α_0, β_0)
+
+2. Model-specific parameters:
+   θ_i | family(i) ~ N(μ_family(i), σ²_family(i))
+
+3. Token prediction:
+   y_ij | θ_i, x_j ~ N(f(x_j; θ_i), σ²_noise)
+
+Where:
+- y_ij: token count for model i on query j
+- x_j: feature vector for query j
+- f(·; θ_i): Bayesian Ridge regression function
+- family(i): family assignment for model i
+
+Key Features:
+============
+- Uncertainty Decomposition: Separates aleatoric (inherent) and epistemic (model) uncertainty
+- Family-based Cold Start: Uses family priors for new model initialization
+- Adaptive Learning: Updates both model-specific and family-level parameters
+- Calibrated Predictions: Provides well-calibrated confidence intervals
+
+Classes:
+========
+- BayesianTokenPredictor: Main prediction model with hierarchical structure
+- FeatureExtractor: Query feature extraction utilities
+"""
+
 import numpy as np
 import pandas as pd
 from sklearn.linear_model import BayesianRidge
@@ -9,7 +48,55 @@ import warnings
 warnings.filterwarnings('ignore')
 
 class BayesianTokenPredictor:
-    """Bayesian token prediction model using Bayesian approach"""
+    """
+    Bayesian token prediction model using hierarchical family structure
+    
+    This class implements a hierarchical Bayesian model that:
+    1. Learns family-level priors from historical data
+    2. Trains model-specific Bayesian Ridge regressors
+    3. Provides uncertainty-aware token predictions
+    4. Handles cold start scenarios via family priors
+    
+    Mathematical Details:
+    ====================
+    
+    Feature Space:
+    - Query features: [length, complexity, type_indicators, time_features]
+    - Model features: [family_indicators, size_category, verbosity_score]
+    - Combined feature vector: x_j ∈ ℝ^d where d ≈ 14
+    
+    Hierarchical Structure:
+    - Family priors learned from observed data: P(μ_f, σ²_f | D_family)
+    - Model parameters: θ_i ~ N(μ_family(i), σ²_family(i) + σ²_model)
+    - Prediction: ŷ_ij = θ_i^T x_j + ε where ε ~ N(0, σ²_noise)
+    
+    Uncertainty Sources:
+    - Aleatoric: σ²_inherent (irreducible noise in token generation)
+    - Epistemic: σ²_parameter (uncertainty in model parameters)
+    - Total: σ²_total = σ²_aleatoric + σ²_epistemic
+    
+    Cold Start Protocol:
+    - New model gets family prior: θ_new ~ N(μ_family, σ²_family + λ)
+    - Uncertainty penalty: λ = (1 - n_family/1000) × σ²_family
+    - Progressive refinement as data accumulates
+    
+    Attributes:
+    -----------
+    model_families : Dict[str, List[str]]
+        Mapping of family names to model lists
+    models : Dict[str, BayesianRidge]
+        Trained model-specific predictors
+    family_priors : Dict[str, Dict]
+        Family-level statistical priors
+    uncertainty_models : Dict[str, Any]
+        Uncertainty estimation models (future extension)
+    feature_scaler : StandardScaler
+        Feature normalization for stable training
+    model_costs : Dict[str, float]
+        Cost per token for each model
+    is_fitted : bool
+        Training status indicator
+    """
     
     def __init__(self, model_families: Dict[str, List[str]]):
         self.model_families = model_families
