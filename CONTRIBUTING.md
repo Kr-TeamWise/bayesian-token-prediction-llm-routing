@@ -29,9 +29,10 @@ Thank you for your interest in contributing to our research on Bayesian Framewor
 
 ### Before Contributing
 
-1. **Read the Paper**: Understand the theoretical foundation and key contributions
-2. **Review Existing Issues**: Check if your idea is already being discussed
-3. **Reproduce Results**: Ensure you can run the main experiments successfully
+1. **Read the Paper**: Understand the theoretical foundation and methodology
+2. **Run Experiments**: Reproduce the baseline results on your system
+3. **Check Issues**: Review existing issues and discussions
+4. **Theoretical Discussions**: Join our research Discord community at https://discord.gg/yuzNhYBe
 
 ### Research Standards
 
@@ -200,8 +201,8 @@ Contributors to significant research extensions will be acknowledged in:
 
 - **Research Questions**: Open a GitHub Discussion
 - **Implementation Issues**: Create a GitHub Issue with reproducible example
-- **Theoretical Discussions**: Join our research Slack/Discord [link]
-- **Collaboration Opportunities**: Email [research-contact@institution.edu]
+- **Theoretical Discussions**: Join our research Slack/Discord [https://discord.gg/yuzNhYBe]
+- **Collaboration Opportunities**: Email [yush7881@korea.ac.kr]
 
 ## 📜 Code of Conduct
 
