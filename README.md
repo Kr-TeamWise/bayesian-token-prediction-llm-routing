@@ -260,12 +260,14 @@ This is research code accompanying an academic paper. For questions or issues, p
 If you use this code or methodology in your research, please cite our paper:
 
 ```bibtex
-@article{bayesian_llm_routing_2024,
+@mastersthesis{bayesian_llm_routing_2025,
   title={Bayesian Framework for Efficient LLM Routing with Thompson Sampling},
-  author={[Author Names]},
-  journal={[Conference/Journal Name]},
-  year={2024},
-  url={https://github.com/[repo-name]},
+  author={Yu Seunghyun},
+  school={Korea University},
+  type={Master's thesis},
+  year={2025},
+  address={Seoul, South Korea},
+  url={https://github.com/Kr-TeamWise/bayesian-token-prediction-llm-routing},
   abstract={We propose a novel Bayesian framework for Large Language Model routing that leverages model family relationships and uncertainty quantification to achieve optimal cost-quality tradeoffs through principled Thompson Sampling.}
 }
 ```
